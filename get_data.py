@@ -7,7 +7,8 @@ ds = "dkadyrov/stored-product-insect-database-spidb-aspids"
 log = "data/aspids/aspids_log.csv"
 CH = [1]                              # which channel(s) to use - set after probe
 SKIP = set()                          # sessions to ignore - set after probe
-CAP = {"insect": 3, "clean": 10}      # max minutes taken per log row
+CAP = {"insect": 1, "clean": 4}       # max minutes taken per log row
+MATS = {"WheatGroats", "Rice"}        # insect rows only from these grains (clean: all)
 bugs = {"Tenebrio molitor", "Tenebrio molitor larvae",
         "Tribolium confusum", "Callosobruchus maculatus"}
 
@@ -56,6 +57,14 @@ for f in fs:
     c, k = rest.split("_")
     ws.setdefault(s, {})[(int(c), int(k))] = f
 
+# sessions starting within 1 s of each other = two recorders at once; unclear which
+# container each captured, so drop both to keep labels clean
+ss = sorted(ws, key=st)
+for x, z in zip(ss, ss[1:]):
+    if (st(z) - st(x)).total_seconds() < 1:
+        SKIP |= {x, z}
+print(len(SKIP), "paired sessions skipped")
+
 # chunk length: read one full chunk (a chunk 1 that has a chunk 2 after it)
 for s, ch in ws.items():
     c = min(c for c, k in ch)
@@ -91,6 +100,8 @@ for i, r in enumerate(csv.DictReader(open(log))):
     rs = datetime.fromisoformat(r["start"])
     re = min(datetime.fromisoformat(r["end"]), rs + timedelta(minutes=CAP[lab]))
     mat = (r["material"] or "Unknown").replace(" ", "")
+    if lab == "insect" and mat not in MATS:
+        continue
 
     for s, ch in ws.items():
         if s in SKIP:
