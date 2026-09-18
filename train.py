@@ -53,6 +53,9 @@ p = rf.predict(X[te])
 print(confusion_matrix(Y[te], p))
 print(classification_report(Y[te], p, target_names=["clean", "insect"]))
 
+joblib.dump(rf, "model_eval.pkl")  # never saw the test (wheat) data - use this for honest demos
+print("saved model_eval.pkl")
+
 rf.fit(X, Y)  # final model on all data
 joblib.dump(rf, "model.pkl")
 print("saved model.pkl")

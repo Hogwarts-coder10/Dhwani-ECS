@@ -17,7 +17,7 @@ def feats(y):
     return np.hstack([m.mean(1), m.std(1), c.mean(), b.mean(), z.mean(), e, k])
 
 
-rf = joblib.load("model.pkl")
+rf = joblib.load(sys.argv[2] if len(sys.argv) > 2 else "model.pkl")
 y, _ = librosa.load(sys.argv[1], sr=sr, mono=True)
 
 n = 0

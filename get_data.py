@@ -1,4 +1,4 @@
-import csv, os, sys, zipfile
+import csv, os, sys, time, zipfile
 from datetime import datetime, timedelta
 import soundfile as sf
 from kaggle.api.kaggle_api_extended import KaggleApi
@@ -21,8 +21,19 @@ def get(f):
     p = os.path.join("cache", os.path.basename(f))
     if os.path.exists(p):
         return p
-    a.dataset_download_file(ds, f, path="cache", quiet=True)
     z = p + ".zip"
+    for t in range(5):
+        try:
+            a.dataset_download_file(ds, f, path="cache", quiet=True)
+            break
+        except Exception as e:
+            for x in (p, z):  # remove half-downloaded file so it isn't cached as good
+                if os.path.exists(x):
+                    os.remove(x)
+            print("  retry", t + 1, "-", type(e).__name__)
+            time.sleep(5 * (t + 1))
+    else:
+        raise SystemExit("download keeps failing - check internet and rerun")
     if os.path.exists(z):
         with zipfile.ZipFile(z) as zz:
             zz.extractall("cache")
@@ -103,13 +114,16 @@ for i, r in enumerate(csv.DictReader(open(log))):
     if lab == "insect" and mat not in MATS:
         continue
 
-    for s, ch in ws.items():
-        if s in SKIP:
+    got = 0  # seconds collected for this row
+    for s in sorted(ws, key=st):
+        if got >= (re - rs).total_seconds():
+            break  # row already covered, don't pull overlapping sessions
+        if s in SKIP or s.startswith("2023_06_21"):  # Jun 21 = hundreds of overlapping short sessions
             continue
         s0 = st(s)
         if s0 > re:
-            continue
-        for (c, k), f in ch.items():
+            break
+        for (c, k), f in sorted(ws[s].items()):
             if c not in CH:
                 continue
             cs = s0 + (k - 1) * D
@@ -123,8 +137,11 @@ for i, r in enumerate(csv.DictReader(open(log))):
             y, _ = sf.read(p, start=x0, stop=x1)
             if y.ndim > 1:
                 y = y[:, 0]
+            if len(y) < 2 * sr:  # file shorter than expected
+                continue
             sf.write(f"data/{lab}/{s}_Ch{c}_{mat}_{i}_{k}.wav", y, sr)
-            n[lab] += (a1 - a0).total_seconds() / 60
-            print(f"{lab:6} {mat:12} {s} Ch{c} chunk {k}  {(a1 - a0).total_seconds():.0f}s")
+            got += len(y) / sr
+            n[lab] += len(y) / sr / 60
+            print(f"{lab:6} {mat:12} {s} Ch{c} chunk {k}  {len(y) / sr:.0f}s")
 
 print(f"\ninsect: {n['insect']:.1f} min | clean: {n['clean']:.1f} min")
