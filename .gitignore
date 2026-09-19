@@ -9,3 +9,6 @@ cache/
 .venv312/
 venv/
 __pycache__/
+*.pdf
+*.jpeg
+*.png
