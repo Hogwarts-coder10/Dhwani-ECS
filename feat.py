@@ -6,7 +6,7 @@ from scipy.signal import butter, sosfiltfilt, resample_poly
 
 sr = 24000  # A-SPIDS native rate; Pi recordings get resampled to this
 w = sr      # 1 s windows
-HP = 80     # high-pass cutoff, kills the slow piezo swing below 80 Hz
+HP = 600    # high-pass cutoff, kills piezo swing and sound-card mains hum (50 Hz harmonics up to ~550 Hz)
 sos = butter(4, HP, "highpass", fs=sr, output="sos")
 
 
