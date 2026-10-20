@@ -9,6 +9,7 @@ CH = [1]                              # which channel(s) to use - set after prob
 SKIP = set()                          # sessions to ignore - set after probe
 CAP = {"insect": 1, "clean": 4}       # max minutes taken per log row
 MATS = {"WheatGroats", "Rice"}        # insect rows only from these grains (clean: all)
+NOISE = {"Silence", "Helicopter", "Footsteps", "Clap", "Talking"}  # noisy clean rows = extra negatives
 bugs = {"Tenebrio molitor", "Tenebrio molitor larvae",
         "Tribolium confusum", "Callosobruchus maculatus"}
 
@@ -98,9 +99,10 @@ if len(sys.argv) > 1 and sys.argv[1] == "probe":
 for d in ["data/insect", "data/clean"]:
     os.makedirs(d, exist_ok=True)
 
-n = {"insect": 0, "clean": 0}
+n = {}
 for i, r in enumerate(csv.DictReader(open(log))):
-    if r["noise"] != "Silence":
+    nz = r["noise"]
+    if nz not in NOISE:
         continue
     if r["target"].startswith("No Insects"):
         lab = "clean"
@@ -139,9 +141,11 @@ for i, r in enumerate(csv.DictReader(open(log))):
                 y = y[:, 0]
             if len(y) < 2 * sr:  # file shorter than expected
                 continue
-            sf.write(f"data/{lab}/{s}_Ch{c}_{mat}_{i}_{k}.wav", y, sr)
+            sf.write(f"data/{lab}/{s}_Ch{c}_{mat}_{nz}_{i}_{k}.wav", y, sr)
             got += len(y) / sr
-            n[lab] += len(y) / sr / 60
-            print(f"{lab:6} {mat:12} {s} Ch{c} chunk {k}  {len(y) / sr:.0f}s")
+            n[lab, nz] = n.get((lab, nz), 0) + len(y) / sr / 60
+            print(f"{lab:6} {nz:10} {mat:12} {s} Ch{c} chunk {k}  {len(y) / sr:.0f}s")
 
-print(f"\ninsect: {n['insect']:.1f} min | clean: {n['clean']:.1f} min")
+print()
+for (lab, nz), v in sorted(n.items()):
+    print(f"{lab:6} {nz:10} {v:6.1f} min")
